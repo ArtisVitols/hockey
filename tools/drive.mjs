@@ -49,7 +49,7 @@ for (let i = 0; i < 50 && !scored; i++) {
     // in tight: vary corner and shot type (low snap / lifted wrister / slap)
     const corner = i % 2 === 0 ? 0.72 : -0.72
     const charge = [0.25, 0.55, 0.85][i % 3]
-    await page.evaluate(([z, c]) => window.__game.shoot(27.13, z, c), [corner, charge])
+    await page.evaluate(([z, c]) => window.__game.shoot(26.5, z, c), [corner, charge])
     await page.evaluate(() => window.__game.advance(1.0))
   } else {
     // drive toward the offensive zone / chase the puck

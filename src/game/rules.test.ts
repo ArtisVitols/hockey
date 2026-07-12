@@ -3,7 +3,7 @@ import { World } from '../physics/world'
 import { Rules } from './rules'
 import { faceoffSlots, neutralDot, endZoneDot } from './faceoff'
 import { boardsSDF } from '../physics/geometry'
-import { RINK } from '../config'
+import { RINK, GOAL } from '../config'
 
 function makeWorld() {
   const world = new World()
@@ -44,9 +44,9 @@ describe('icing', () => {
     const { world, rules } = makeWorld()
     world.lastTouchTeam = 0
     world.lastTouchX = -5
-    world.puck.pos.set(26.9, 0.02, 4)
+    world.puck.pos.set(GOAL.lineX - 0.2, 0.02, 4)
     rules.reset()
-    world.puck.pos.x = 27.3
+    world.puck.pos.x = GOAL.lineX + 0.2
     const stop = rules.check()
     expect(stop?.reason).toBe('icing')
     expect(stop?.againstTeam).toBe(0)
@@ -57,9 +57,9 @@ describe('icing', () => {
     const { world, rules } = makeWorld()
     world.lastTouchTeam = 0
     world.lastTouchX = 5
-    world.puck.pos.set(26.9, 0.02, 4)
+    world.puck.pos.set(GOAL.lineX - 0.2, 0.02, 4)
     rules.reset()
-    world.puck.pos.x = 27.3
+    world.puck.pos.x = GOAL.lineX + 0.2
     expect(rules.check()).toBeNull()
   })
 
@@ -67,9 +67,9 @@ describe('icing', () => {
     const { world, rules } = makeWorld()
     world.lastTouchTeam = 0
     world.lastTouchX = -5
-    world.puck.pos.set(26.9, 0.02, 0)
+    world.puck.pos.set(GOAL.lineX - 0.2, 0.02, 0)
     rules.reset()
-    world.puck.pos.x = 27.3
+    world.puck.pos.x = GOAL.lineX + 0.2
     expect(rules.check()).toBeNull()
   })
 })

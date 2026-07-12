@@ -1,20 +1,26 @@
-// All units are meters (NHL rink: 200ft x 85ft).
+// All units are meters. International/IIHF rink (dimensions.com):
+// 61 m x 30 m, 8.5 m corners, goal lines 4 m from the ends, blue lines
+// 8.83 m from center, 9 m faceoff circles, 3.66 m goal crease.
 export const RINK = {
-  length: 60.96,
-  width: 25.9,
-  halfLength: 30.48,
-  halfWidth: 12.95,
-  cornerRadius: 8.53,
+  length: 61,
+  width: 30,
+  halfLength: 30.5,
+  halfWidth: 15,
+  cornerRadius: 8.5,
   boardHeight: 1.07,
-  glassHeight: 1.83,
-  goalLineFromEnd: 3.35,
-  blueLineFromCenter: 7.62,
-  centerCircleRadius: 4.57,
-  faceoffCircleRadius: 4.57,
-  endZoneDotFromCenterX: 21.03,
-  dotY: 6.71,
-  neutralDotFromCenterX: 6.1,
+  // boards + safety glass total 3.5 m on international rinks
+  glassHeight: 2.43,
+  goalLineFromEnd: 4,
+  blueLineFromCenter: 8.83,
+  centerCircleRadius: 4.5,
+  faceoffCircleRadius: 4.5,
+  // end-zone dots 6.7 m from the goal line
+  endZoneDotFromCenterX: 19.8,
+  dotY: 7,
+  // neutral-zone dots 1.5 m from the blue lines
+  neutralDotFromCenterX: 7.33,
   creaseRadius: 1.83,
+  refereeCreaseRadius: 3,
 } as const
 
 // Regulation goal (dimensions.com): 72"×48" mouth, 40" deep, 2" posts,

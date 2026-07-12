@@ -112,17 +112,13 @@ export function paintIceTexture(): CanvasTexture {
     ctx.restore()
   }
 
-  // -- goalie trapezoid behind each goal line
+  // -- referee's crease: red semicircle at the boards at center ice
+  // (international rinks have no goalie trapezoid)
   ctx.strokeStyle = RED
   ctx.lineWidth = 0.05 * S
-  for (const sx of [-1, 1]) {
-    for (const sz of [-1, 1]) {
-      ctx.beginPath()
-      ctx.moveTo(px(sx * GOAL.lineX), pz(sz * 3.35))
-      ctx.lineTo(px(sx * RINK.halfLength), pz(sz * 4.27))
-      ctx.stroke()
-    }
-  }
+  ctx.beginPath()
+  ctx.arc(px(0), pz(RINK.halfWidth), RINK.refereeCreaseRadius * S, Math.PI, Math.PI * 2)
+  ctx.stroke()
 
   // -- center-ice logo
   drawCenterLogo(ctx, px(0), pz(0), 3.2 * S)
