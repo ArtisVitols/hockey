@@ -17,11 +17,15 @@ export const RINK = {
   creaseRadius: 1.83,
 } as const
 
+// Regulation goal (dimensions.com): 72"×48" mouth, 40" deep, 2" posts,
+// 88" overall base width with 18"-radius base corners.
 export const GOAL = {
   width: 1.83,
   height: 1.22,
-  depth: 1.12,
-  postRadius: 0.048,
+  depth: 1.0,
+  postRadius: 0.025,
+  baseHalfWidth: 1.1175,
+  baseCornerRadius: 0.457,
   // x position of the goal line (and the goal mouth)
   lineX: RINK.halfLength - RINK.goalLineFromEnd,
 } as const
