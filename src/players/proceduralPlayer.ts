@@ -163,13 +163,15 @@ export function buildProceduralPlayer(colors: ProceduralPlayerColors, goalie = f
 
   if (!goalie) {
     // skater stick (dimensions.com): ~1" rectangular shaft, curved blade
-    // 14.6" long x 2.5" tall; runs from the glove down-forward to the ice
+    // 14.6" long x 2.5" tall. Shaft top sits in the right glove
+    // (~[0.1, 0.9]) and slopes down-forward to the ice at ~[1.0, 0.02],
+    // where the blade extends forward along the ice.
     const shaft = new BoxGeometry(0.026, 1.3, 0.022)
-    shaft.rotateZ(-1.02)
-    add(shaft, [0.52, 0.42, 0.32], BONES.lowerArmR, MAT.stick)
+    shaft.rotateZ(0.76)
+    add(shaft, [0.55, 0.48, 0.33], BONES.lowerArmR, MAT.stick)
     const blade = new BoxGeometry(0.37, 0.064, 0.028)
     blade.rotateY(0.25)
-    add(blade, [1.2, 0.04, 0.34], BONES.lowerArmR, MAT.stick)
+    add(blade, [1.13, 0.035, 0.36], BONES.lowerArmR, MAT.stick)
   }
 
   // goalie extras: leg pads, blocker, and a regulation goalie stick
