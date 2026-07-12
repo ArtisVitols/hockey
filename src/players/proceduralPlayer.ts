@@ -161,22 +161,43 @@ export function buildProceduralPlayer(colors: ProceduralPlayerColors, goalie = f
     add(new BoxGeometry(0.24, 0.035, 0.012), [0.04, 0.012, s * 0.15], ft, MAT.accent)
   }
 
-  // stick in the right hand: shaft runs from the glove down-forward to the
-  // ice, blade at its tip
-  const shaft = new CylinderGeometry(0.017, 0.017, 1.15, 6)
-  shaft.rotateZ(-1.02)
-  add(shaft, [0.48, 0.46, 0.32], BONES.lowerArmR, MAT.stick)
-  const blade = new BoxGeometry(0.32, 0.08, 0.03)
-  blade.rotateY(0.25)
-  add(blade, [1.08, 0.05, 0.32], BONES.lowerArmR, MAT.stick)
+  if (!goalie) {
+    // skater stick in the right hand: shaft runs from the glove
+    // down-forward to the ice, blade at its tip
+    const shaft = new CylinderGeometry(0.017, 0.017, 1.15, 6)
+    shaft.rotateZ(-1.02)
+    add(shaft, [0.48, 0.46, 0.32], BONES.lowerArmR, MAT.stick)
+    const blade = new BoxGeometry(0.32, 0.08, 0.03)
+    blade.rotateY(0.25)
+    add(blade, [1.08, 0.05, 0.32], BONES.lowerArmR, MAT.stick)
+  }
 
-  // goalie extras: leg pads + blocker
+  // goalie extras: leg pads, blocker, and a regulation goalie stick
+  // (dimensions.com: ~26.5" paddle, 15.4"×3.7" blade, ~1" shaft)
   if (goalie) {
     for (const s of [-1, 1]) {
       const sh = s < 0 ? BONES.shinL : BONES.shinR
       add(new BoxGeometry(0.16, 0.55, 0.26), [0.06, 0.33, s * 0.16], sh, MAT.accent)
     }
     add(new BoxGeometry(0.22, 0.26, 0.05), [0.1, 0.95, 0.36], BONES.lowerArmR, MAT.accent)
+
+    // blade: 0.39 long × 0.095 tall, flat on the ice across the stance,
+    // face toward the play with a slight curve
+    const gBlade = new BoxGeometry(0.03, 0.095, 0.39)
+    gBlade.rotateY(0.12)
+    add(gBlade, [0.42, 0.055, 0.26], BONES.lowerArmR, MAT.accent)
+
+    // paddle: 0.66 long wide plank rising from the blade heel to the
+    // blocker hand, leaning back and slightly inward
+    const gPaddle = new BoxGeometry(0.028, 0.66, 0.09)
+    gPaddle.rotateZ(0.22)
+    gPaddle.rotateX(-0.08)
+    add(gPaddle, [0.35, 0.4, 0.4], BONES.lowerArmR, MAT.accent)
+
+    // thin shaft continuing from the paddle top past the blocker
+    const gShaft = new BoxGeometry(0.025, 0.62, 0.025)
+    gShaft.rotateZ(0.34)
+    add(gShaft, [0.17, 0.98, 0.38], BONES.lowerArmR, MAT.stick)
   }
 
   // ---- merge with material groups
