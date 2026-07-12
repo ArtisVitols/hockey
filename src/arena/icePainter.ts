@@ -42,12 +42,13 @@ export function paintIceTexture(): CanvasTexture {
   vline(-GOAL.lineX, 0.05, RED)
   vline(GOAL.lineX, 0.05, RED)
 
-  // -- center red line (solid with white dash pattern)
+  // -- center red line: red with regular white interval markings (the rule
+  // requires a design that distinguishes it from the blue lines)
   vline(0, 0.3, RED)
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
-  const dashH = 0.28 * S
-  for (let y = dashH / 2; y < canvas.height; y += dashH * 2.2) {
-    ctx.fillRect(px(0) - 0.05 * S, y, 0.1 * S, dashH)
+  const dashH = 0.25 * S
+  for (let y = dashH; y < canvas.height; y += dashH * 3.6) {
+    ctx.fillRect(px(0) - 0.15 * S, y, 0.3 * S, dashH)
   }
 
   const circle = (x: number, z: number, r: number, color: string, lineW: number) => {
@@ -64,19 +65,36 @@ export function paintIceTexture(): CanvasTexture {
     ctx.fill()
   }
 
-  // -- center circle + dot
+  // Regulation red faceoff spot: 61 cm circle, white interior with a red
+  // vertical band across the middle (7.6 cm white slivers face the goals).
+  const faceoffSpot = (x: number, z: number) => {
+    const r = 0.305
+    dot(x, z, r, '#ffffff')
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(px(x), pz(z), r * S, 0, Math.PI * 2)
+    ctx.clip()
+    ctx.fillStyle = RED
+    const band = (r - 0.076) * S
+    ctx.fillRect(px(x) - band, pz(z) - r * S, band * 2, r * 2 * S)
+    ctx.restore()
+    circle(x, z, r, RED, 0.05)
+  }
+
+  // -- center circle + solid blue 30 cm spot
   circle(0, 0, RINK.centerCircleRadius, BLUE, 0.05)
   dot(0, 0, 0.15, BLUE)
 
-  // -- end-zone faceoff circles with hash marks, and neutral-zone dots
+  // -- end-zone faceoff circles with hash marks and double-L marks,
+  // and neutral-zone spots
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const cx = sx * RINK.endZoneDotFromCenterX
       const cz = sz * RINK.dotY
       circle(cx, cz, RINK.faceoffCircleRadius, RED, 0.05)
-      dot(cx, cz, 0.3, RED)
-      // hash marks on both sides of the circle
+      faceoffSpot(cx, cz)
       ctx.fillStyle = RED
+      // hash marks outside the circle, both sides
       for (const hz of [-1, 1]) {
         for (const hx of [-1, 1]) {
           ctx.fillRect(
@@ -87,20 +105,46 @@ export function paintIceTexture(): CanvasTexture {
           )
         }
       }
-      dot(sx * RINK.neutralDotFromCenterX, sz * RINK.dotY, 0.3, RED)
+      // double-L player position marks flanking the spot
+      for (const lx of [-1, 1]) {
+        for (const lz of [-1, 1]) {
+          // leg parallel to the goal line
+          ctx.fillRect(
+            px(cx + lx * 0.6) - 0.025 * S,
+            pz(cz + lz * 0.2) - (lz > 0 ? 0 : 0.9 * S),
+            0.05 * S,
+            0.9 * S,
+          )
+          // foot pointing away from the spot
+          ctx.fillRect(
+            px(cx + lx * 0.6) - (lx > 0 ? 0 : 0.55 * S),
+            pz(cz + lz * 1.1) - 0.025 * S,
+            0.55 * S,
+            0.05 * S,
+          )
+        }
+      }
+      faceoffSpot(sx * RINK.neutralDotFromCenterX, sz * RINK.dotY)
     }
   }
 
-  // -- goal creases (filled light blue, red outline, flat edge on goal line)
+  // -- goal creases: straight sides 30 cm outside each post joined by a
+  // 1.83 m arc, light blue fill, red outline, side hash marks 1.22 m out
   for (const sx of [-1, 1]) {
     const gx = px(sx * GOAL.lineX)
     const gz = pz(0)
     const r = RINK.creaseRadius * S
-    const inward = -sx // toward center ice
+    const halfW = 1.22 * S // posts (0.915) + 30 cm
+    const a = Math.asin((1.22 / RINK.creaseRadius))
+    const arcX = Math.cos(a) * r // x-extent where the arc meets the sides
+
     ctx.save()
     ctx.beginPath()
-    if (inward > 0) ctx.arc(gx, gz, r, -Math.PI / 2, Math.PI / 2)
-    else ctx.arc(gx, gz, r, Math.PI / 2, (Math.PI * 3) / 2)
+    ctx.moveTo(gx, gz - halfW)
+    ctx.lineTo(gx - sx * arcX, gz - halfW)
+    if (sx > 0) ctx.arc(gx, gz, r, -(Math.PI - a), Math.PI - a, true)
+    else ctx.arc(gx, gz, r, -a, a, false)
+    ctx.lineTo(gx, gz + halfW)
     ctx.closePath()
     ctx.fillStyle = CREASE_BLUE
     ctx.globalAlpha = 0.75
@@ -110,6 +154,17 @@ export function paintIceTexture(): CanvasTexture {
     ctx.lineWidth = 0.05 * S
     ctx.stroke()
     ctx.restore()
+
+    // crease side hash marks 1.22 m from the goal line
+    ctx.fillStyle = RED
+    for (const hz of [-1, 1]) {
+      ctx.fillRect(
+        gx - sx * 1.22 * S - 0.025 * S,
+        pz(hz * 1.22) - (hz > 0 ? 0.13 * S : 0),
+        0.05 * S,
+        0.13 * S,
+      )
+    }
   }
 
   // -- referee's crease: red semicircle at the boards at center ice
@@ -120,46 +175,11 @@ export function paintIceTexture(): CanvasTexture {
   ctx.arc(px(0), pz(RINK.halfWidth), RINK.refereeCreaseRadius * S, Math.PI, Math.PI * 2)
   ctx.stroke()
 
-  // -- center-ice logo
-  drawCenterLogo(ctx, px(0), pz(0), 3.2 * S)
-
   ctx.globalAlpha = 1
   const tex = new CanvasTexture(canvas)
   tex.colorSpace = SRGBColorSpace
   tex.anisotropy = 8
   return tex
-}
-
-function drawCenterLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number) {
-  ctx.save()
-  ctx.globalAlpha = 0.55
-  // outer ring
-  ctx.strokeStyle = '#12275e'
-  ctx.lineWidth = radius * 0.09
-  ctx.beginPath()
-  ctx.arc(cx, cy, radius * 0.92, 0, Math.PI * 2)
-  ctx.stroke()
-  // inner disc
-  ctx.fillStyle = 'rgba(60, 110, 180, 0.25)'
-  ctx.beginPath()
-  ctx.arc(cx, cy, radius * 0.84, 0, Math.PI * 2)
-  ctx.fill()
-  // crossed sticks
-  ctx.strokeStyle = '#12275e'
-  ctx.lineCap = 'round'
-  ctx.lineWidth = radius * 0.11
-  for (const a of [-0.6, 0.6]) {
-    ctx.beginPath()
-    ctx.moveTo(cx - Math.cos(a) * radius * 0.62, cy - Math.sin(a) * radius * 0.62)
-    ctx.lineTo(cx + Math.cos(a) * radius * 0.62, cy + Math.sin(a) * radius * 0.62)
-    ctx.stroke()
-  }
-  // puck
-  ctx.fillStyle = '#c8102e'
-  ctx.beginPath()
-  ctx.arc(cx, cy + radius * 0.3, radius * 0.13, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
 }
 
 // Tiling skate-scratch texture: directional streaks used to modulate the ice
