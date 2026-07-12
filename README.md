@@ -15,14 +15,34 @@ A 3D ice hockey game that runs in the browser. Three.js (WebGPU with WebGL2 fall
 
 ## Controls
 
+Two schemes, selectable in the menu:
+
+**Mouse aim** (default)
+
 | Action | Input |
 |---|---|
 | Skate | WASD |
 | Aim | Mouse |
-| Shoot | Hold + release left mouse (charge = power/lift) |
+| Slap shot | Hold + release left mouse (charge = power/lift) |
+| Wrist shot | Tap left mouse |
 | Pass | E or right mouse |
+| Poke check | F |
+| Body check | Space |
+| Deke | Q |
 | Sprint | Shift |
-| Pause | Esc |
+
+**Classic (NHL 09)** — context-sensitive action cluster
+
+| Action | With puck | Without puck |
+|---|---|---|
+| Skate | Arrow keys | Arrow keys |
+| S | Pass (auto-target) | Switch player |
+| D | Wrist shot (auto-aim) | Poke check |
+| Space / W | Slap shot (hold to charge) | Body check |
+| A | Deke | — |
+| E / Shift | Sprint | Sprint |
+
+Both schemes: **F9** pull goalie (F10 for P2 in 2-player), **Esc** pause.
 
 Player 2 (gamepad): left stick skate, right stick aim, RT/A shoot, LB/X pass, L3/LT sprint.
 

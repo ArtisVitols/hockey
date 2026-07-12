@@ -10,6 +10,7 @@ import { decideCarrier, type Difficulty } from './skaterBrain'
 // shoot/pass/carry decisions. Writes into the shared PlayerIntent objects.
 export class TeamBrain {
   onShot: ((shooter: SkaterBody) => void) | null = null
+  onPoke: ((poker: SkaterBody) => void) | null = null
   private decisionTimer = 0
   private rand: () => number
 
@@ -81,6 +82,10 @@ export class TeamBrain {
       if (chaser === s) {
         // pursue the puck (lead it slightly by its velocity)
         steerToward(intent, s, puck.pos.x + puck.vel.x * 0.25, puck.pos.z + puck.vel.z * 0.25, true)
+        // poke at a carrier in reach (world validates range/cooldown/facing)
+        if (owner && Math.hypot(puck.pos.x - s.pos.x, puck.pos.z - s.pos.z) < 1.6) {
+          if (this.world.pokeCheck(s)) this.onPoke?.(s)
+        }
         return
       }
 

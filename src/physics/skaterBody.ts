@@ -18,9 +18,33 @@ export class SkaterBody {
   readonly prevPos = new Vector3()
   readonly vel = new Vector3()
   heading = 0 // facing angle (radians, atan2(-z, x) convention: angle in xz)
+  // while > 0, input is ignored (body-check knockdown)
+  stunTimer = 0
+  // action cooldowns (seconds remaining)
+  pokeCooldown = 0
+  checkCooldown = 0
+  dekeCooldown = 0
 
   step(dt: number, intent: PlayerIntent): void {
     this.prevPos.copy(this.pos)
+    this.pokeCooldown = Math.max(0, this.pokeCooldown - dt)
+    this.checkCooldown = Math.max(0, this.checkCooldown - dt)
+    this.dekeCooldown = Math.max(0, this.dekeCooldown - dt)
+
+    if (this.stunTimer > 0) {
+      this.stunTimer -= dt
+      // stunned: no control, scrub speed hard
+      const speed = Math.hypot(this.vel.x, this.vel.z)
+      if (speed > 0) {
+        const scale = Math.max(0, speed - 7 * dt) / speed
+        this.vel.x *= scale
+        this.vel.z *= scale
+      }
+      this.pos.x += this.vel.x * dt
+      this.pos.z += this.vel.z * dt
+      this.collideBoards()
+      return
+    }
 
     const speed = Math.hypot(this.vel.x, this.vel.z)
     const hasInput = Math.hypot(intent.moveX, intent.moveZ) > 0.01
@@ -63,8 +87,10 @@ export class SkaterBody {
 
     this.pos.x += this.vel.x * dt
     this.pos.z += this.vel.z * dt
+    this.collideBoards()
+  }
 
-    // boards keep skaters in
+  private collideBoards(): void {
     const sd = boardsSDF(this.pos.x, this.pos.z)
     if (sd > -SKATER_RADIUS) {
       const { nx, nz } = boardsNormal(this.pos.x, this.pos.z)

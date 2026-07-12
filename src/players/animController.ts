@@ -115,6 +115,69 @@ function makeShotClip(): AnimationClip {
   ])
 }
 
+// Poke check: quick two-handed stick lunge.
+function makePokeClip(): AnimationClip {
+  const T = 0.4
+  return new AnimationClip('poke', T, [
+    qTrack('upperArmR', [
+      [0, 0, 0, 0],
+      [T * 0.4, 1.1, 0, -0.2],
+      [T, 0, 0, 0],
+    ]),
+    qTrack('upperArmL', [
+      [0, 0, 0, 0],
+      [T * 0.4, 0.9, 0, 0.15],
+      [T, 0, 0, 0],
+    ]),
+    qTrack('chest', [
+      [0, 0, 0, 0.3],
+      [T * 0.4, 0, 0, 0.55],
+      [T, 0, 0, 0.3],
+    ]),
+  ])
+}
+
+// Body check: shoulder drive into the hit.
+function makeCheckClip(): AnimationClip {
+  const T = 0.45
+  return new AnimationClip('check', T, [
+    qTrack('chest', [
+      [0, 0, 0, 0.3],
+      [T * 0.35, 0, -0.55, 0.5],
+      [T, 0, 0, 0.3],
+    ]),
+    qTrack('upperArmR', [
+      [0, 0, 0, 0],
+      [T * 0.35, 0.4, 0, -0.5],
+      [T, 0, 0, 0],
+    ]),
+  ])
+}
+
+// Stumble: knocked off balance, pitches forward and recovers.
+function makeStumbleClip(): AnimationClip {
+  const T = 0.75
+  return new AnimationClip('stumble', T, [
+    qTrack('chest', [
+      [0, 0, 0, 0.3],
+      [T * 0.3, 0, 0.3, 0.95],
+      [T * 0.65, 0, 0.2, 0.75],
+      [T, 0, 0, 0.3],
+    ]),
+    qTrack('upperArmL', [
+      [0, 0, 0, 0],
+      [T * 0.3, -1.1, 0, 0.6],
+      [T, 0, 0, 0],
+    ]),
+    qTrack('upperArmR', [
+      [0, 0, 0, 0],
+      [T * 0.3, -1.1, 0, -0.6],
+      [T, 0, 0, 0],
+    ]),
+    new VectorKeyframeTrack('hips.position', [0, T * 0.3, T], [0, 0.95, 0, 0, 0.78, 0, 0, 0.95, 0]),
+  ])
+}
+
 // Goalie butterfly save pose (also used as their idle crouch source).
 function makeButterflyClip(): AnimationClip {
   const T = 0.4
@@ -148,6 +211,9 @@ export class AnimController {
   private idle: AnimationAction
   private skate: AnimationAction
   private shot: AnimationAction
+  private poke: AnimationAction
+  private check: AnimationAction
+  private stumble: AnimationAction
   private butterfly: AnimationAction | null = null
   private skating = false
 
@@ -155,9 +221,16 @@ export class AnimController {
     this.mixer = new AnimationMixer(mesh)
     this.idle = this.mixer.clipAction(makeIdleClip())
     this.skate = this.mixer.clipAction(makeSkateClip())
-    this.shot = this.mixer.clipAction(makeShotClip())
-    this.shot.setLoop(LoopOnce, 1)
-    this.shot.clampWhenFinished = false
+    const oneShot = (clip: AnimationClip) => {
+      const action = this.mixer.clipAction(clip)
+      action.setLoop(LoopOnce, 1)
+      action.clampWhenFinished = false
+      return action
+    }
+    this.shot = oneShot(makeShotClip())
+    this.poke = oneShot(makePokeClip())
+    this.check = oneShot(makeCheckClip())
+    this.stumble = oneShot(makeStumbleClip())
     if (goalie) {
       this.butterfly = this.mixer.clipAction(makeButterflyClip())
       this.butterfly.setLoop(LoopOnce, 1)
@@ -183,6 +256,21 @@ export class AnimController {
   playShot(): void {
     this.shot.reset().fadeIn(0.05).play()
     this.shot.fadeOut(0.5)
+  }
+
+  playPoke(): void {
+    this.poke.reset().fadeIn(0.05).play()
+    this.poke.fadeOut(0.35)
+  }
+
+  playCheck(): void {
+    this.check.reset().fadeIn(0.05).play()
+    this.check.fadeOut(0.4)
+  }
+
+  playStumble(): void {
+    this.stumble.reset().fadeIn(0.05).play()
+    this.stumble.fadeOut(0.7)
   }
 
   playButterfly(): void {

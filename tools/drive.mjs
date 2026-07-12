@@ -24,6 +24,13 @@ const state = () =>
     banner: document.getElementById('hud-banner').classList.contains('show'),
   }))
 
+// wait out the opening faceoff so lineup teleports don't eat the skate delta
+for (let i = 0; i < 10; i++) {
+  const m = await page.evaluate(() => window.__game.match())
+  if (m.phase === 'play') break
+  await page.evaluate(() => window.__game.advance(0.5))
+}
+
 const s0 = await state()
 console.log('start:', JSON.stringify(s0))
 

@@ -1,6 +1,7 @@
 import { GOAL } from '../config'
 import type { World } from '../physics/world'
 import type { SkaterBody } from '../physics/skaterBody'
+import { pickOpenMate } from './targeting'
 
 export interface Difficulty {
   // seconds between AI decisions (reaction time)
@@ -54,20 +55,7 @@ export function decideCarrier(
     (o) => Math.hypot(o.pos.x - carrier.pos.x, o.pos.z - carrier.pos.z) < 2.2,
   )
   if (pressure) {
-    let best: SkaterBody | null = null
-    let bestScore = -Infinity
-    for (const m of mates) {
-      if (m === carrier) continue
-      const ahead = (m.pos.x - carrier.pos.x) * attackDir
-      const nearestOpp = Math.min(
-        ...opponents.map((o) => Math.hypot(o.pos.x - m.pos.x, o.pos.z - m.pos.z)),
-      )
-      const score = ahead + nearestOpp * 1.5
-      if (nearestOpp > 2.5 && score > bestScore) {
-        best = m
-        bestScore = score
-      }
-    }
+    const best = pickOpenMate(carrier, mates, opponents, attackDir)
     if (best) return { kind: 'pass', to: best }
   }
 

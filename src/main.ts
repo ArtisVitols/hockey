@@ -18,7 +18,10 @@ import { buildNets } from './arena/nets'
 import { World } from './physics/world'
 import { Engine } from './core/engine'
 import { KeyboardMouseInput } from './input/keyboardMouse'
+import { ClassicKeyboardInput } from './input/classicKeyboard'
 import { PlayerSwitcher } from './input/switching'
+import { autoShotTarget, pickOpenMate, leadPoint } from './ai/targeting'
+import type { ControlScheme } from './ui/menus'
 import { PlayerVisual } from './players/playerVisual'
 import { TEAMS, SKATER_ROLES, lineupPosition } from './game/teams'
 import { Match } from './game/match'
@@ -87,10 +90,14 @@ async function start() {
     scene.add(goalieVisual.group)
   }
 
+  // P1 input: both schemes instantiated, one active at a time
   const input = new KeyboardMouseInput(camera)
+  const classic = new ClassicKeyboardInput()
+  let scheme: ControlScheme = params.get('controls') === 'classic' ? 'classic' : 'mouse'
+  const activeInput = () => (scheme === 'classic' ? classic : input)
   const switcher = new PlayerSwitcher(teamSkaters[0])
   let controlled = switcher.current
-  world.intents.set(controlled, input.intent)
+  world.intents.set(controlled, activeInput().intent)
 
   // controlled-player indicator ring
   const controlRing = new Mesh(
@@ -234,6 +241,9 @@ async function start() {
 
   menu.onStart = (r) => {
     mode = r.mode
+    scheme = r.controls
+    classic.clearQueued()
+    world.intents.set(controlled, activeInput().intent)
     const d = DIFFICULTIES[r.difficulty]!
     cpuBrain.diff = d
     mateBrain.diff = d
@@ -241,7 +251,7 @@ async function start() {
     sound.resume()
   }
 
-  // pause (Escape)
+  // pause (Escape) + pull goalie (F9 = your net, F10 = P2's net in 2P)
   let paused = false
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') {
@@ -249,9 +259,94 @@ async function start() {
       banner.textContent = paused ? 'PAUSED' : ''
       banner.classList.toggle('show', paused)
     }
+    const pull = e.code === 'F9' ? 0 : e.code === 'F10' && mode === '2p' ? 1 : -1
+    if (pull >= 0 && mode !== 'demo') {
+      e.preventDefault()
+      const brain = goalieBrains[pull]!
+      brain.enabled = !brain.enabled
+      const goalie = goalies[pull]!
+      if (brain.enabled) world.blockers.add(goalie)
+      else world.blockers.delete(goalie)
+      showBanner(brain.enabled ? 'GOALIE RETURNS' : 'GOALIE PULLED', 1.6)
+    }
   })
 
   const engine = new Engine()
+
+  // ---- P1 aim resolution: mouse scheme aims at the cursor, classic scheme
+  // auto-aims (far goal corner for shots, most-open teammate for passes)
+  const shotAim = () => {
+    if (scheme === 'classic') return autoShotTarget(controlled, match.attackDirOf(0))
+    const i = input.intent
+    return { x: i.aimX, z: i.aimZ }
+  }
+  const passAim = () => {
+    if (scheme === 'classic') {
+      const best =
+        pickOpenMate(controlled, teamSkaters[0], teamSkaters[1], match.attackDirOf(0), 0) ??
+        pickOpenMate(controlled, teamSkaters[0], [], match.attackDirOf(0), 0)
+      return best ? leadPoint(best) : autoShotTarget(controlled, match.attackDirOf(0))
+    }
+    const i = input.intent
+    return { x: i.aimX, z: i.aimZ }
+  }
+
+  const swapControlled = (next: SkaterBody) => {
+    if (next === controlled) return
+    world.intents.set(controlled, emptyIntent())
+    world.intents.set(next, activeInput().intent)
+    controlled = next
+  }
+
+  // P1 input + action triggers — called from the render loop AND the
+  // headless advance() hook so key-driven actions work in both
+  const updateP1 = (dt: number) => {
+    if (mode === 'demo') return
+    classic.hasPuck = world.possession.owner === controlled
+    const active = activeInput()
+    active.update(dt)
+
+    swapControlled(switcher.update(world, dt))
+    if (scheme === 'classic' && classic.switchRequested) {
+      swapControlled(switcher.requestSwitch(world))
+    }
+
+    const i = active.intent
+    const anim = () => visuals.get(controlled)?.anim
+
+    if (prevShootHeld && !i.shootHeld) {
+      const charge = active.consumeCharge()
+      const t = shotAim()
+      // a quick LMB tap in the mouse scheme is a wrist shot
+      if (scheme === 'mouse' && input.wasTap) world.wristShot(controlled, t.x, t.z)
+      else world.shoot(controlled, t.x, t.z, charge)
+      anim()?.playShot()
+    }
+    prevShootHeld = i.shootHeld
+
+    if (i.passPressed) {
+      const t = passAim()
+      world.pass(controlled, t.x, t.z)
+      anim()?.playShot()
+    }
+    if (i.wristShotPressed) {
+      const t = shotAim()
+      world.wristShot(controlled, t.x, t.z)
+      anim()?.playShot()
+    }
+    if (i.pokePressed) {
+      const ready = controlled.pokeCooldown <= 0
+      world.pokeCheck(controlled)
+      if (ready) anim()?.playPoke()
+    }
+    if (i.checkPressed) {
+      const ready = controlled.checkCooldown <= 0
+      const victim = world.bodyCheck(controlled)
+      if (ready) anim()?.playCheck()
+      if (victim) visuals.get(victim)?.anim.playStumble()
+    }
+    if (i.dekeDir !== 0) world.deke(controlled, i.dekeDir)
+  }
 
   // one sim step — shared by the render loop and the headless test hook
   const stepSim = (stepDt: number) => {
@@ -277,25 +372,7 @@ async function start() {
     const dt = Math.min((now - lastTime) / 1000, 0.05)
     lastTime = now
 
-    input.update(dt)
-
-    // control switching: intent follows the controlled skater
-    const next = switcher.update(world)
-    if (next !== controlled) {
-      world.intents.set(controlled, emptyIntent())
-      world.intents.set(next, input.intent)
-      controlled = next
-    }
-
-    if (prevShootHeld && !input.intent.shootHeld) {
-      world.shoot(controlled, input.intent.aimX, input.intent.aimZ, input.consumeCharge())
-      visuals.get(controlled)?.anim.playShot()
-    }
-    prevShootHeld = input.intent.shootHeld
-    if (input.intent.passPressed) {
-      world.pass(controlled, input.intent.aimX, input.intent.aimZ)
-      visuals.get(controlled)?.anim.playShot()
-    }
+    if (!paused) updateP1(dt)
 
     // player 2 (gamepad) drives team 1 in 2P mode
     if (mode === '2p') {
@@ -338,8 +415,9 @@ async function start() {
     const tmp = puckMesh.position
     tmp.copy(world.puck.prevPos).lerp(world.puck.pos, alpha)
     controlRing.position.set(controlled.pos.x, 0.012, controlled.pos.z)
+    aimRing.visible = scheme === 'mouse' && mode !== 'demo'
     aimRing.position.set(input.intent.aimX, 0.01, input.intent.aimZ)
-    chargeFill.style.width = `${Math.round(input.shootCharge * 100)}%`
+    chargeFill.style.width = `${Math.round(activeInput().shootCharge * 100)}%`
 
     if (orbit) orbit.controls.update()
     else follow.update(dt, visuals.get(controlled)!.group.position, puckMesh.position)
@@ -371,6 +449,7 @@ async function start() {
     shoot(x: number, z: number, charge: number): void
     advance(seconds: number): void
     match(): { phase: string; period: number; clock: number; score: [number, number] }
+    goalie(team: 0 | 1): { x: number; z: number }
     spread(): number
   }
   ;(window as unknown as { __game: GameTestApi }).__game = {
@@ -382,7 +461,7 @@ async function start() {
       const stepDt = Engine.STEP
       const steps = Math.round(seconds / stepDt)
       for (let i = 0; i < steps; i++) {
-        if (mode !== 'demo') input.update(stepDt)
+        updateP1(stepDt)
         stepSim(stepDt)
       }
     },
@@ -392,6 +471,7 @@ async function start() {
       clock: match.clock,
       score: [match.score[0], match.score[1]],
     }),
+    goalie: (team: 0 | 1) => ({ x: goalies[team]!.pos.x, z: goalies[team]!.pos.z }),
     // mean pairwise skater distance — clump detector for AI soak tests
     spread: () => {
       let sum = 0

@@ -111,6 +111,73 @@ export class World {
     this.puck.shootToward(_aim, 16)
   }
 
+  // quick low snap shot: instant release, modest speed, slight lift
+  wristShot(shooter: SkaterBody, aimX: number, aimZ: number): void {
+    if (this.possession.owner !== shooter) return
+    this.recordRelease(shooter)
+    this.possession.release()
+    _aim.set(aimX, 0, aimZ)
+    this.puck.shootToward(_aim, 21)
+    this.puck.vel.y = 1.2
+  }
+
+  // stick poke: knock the puck loose from a carrier ahead of the poker.
+  // Returns true if the puck was stripped (for animation triggers).
+  pokeCheck(poker: SkaterBody): boolean {
+    if (poker.pokeCooldown > 0) return false
+    poker.pokeCooldown = 0.8
+    const owner = this.possession.owner
+    if (!owner || owner === poker) return false
+    if (this.teamOf.get(owner) === this.teamOf.get(poker)) return false
+    const dx = this.puck.pos.x - poker.pos.x
+    const dz = this.puck.pos.z - poker.pos.z
+    const d = Math.hypot(dx, dz)
+    if (d > 1.7) return false
+    // must be roughly facing the puck
+    const facing = (dx * Math.cos(poker.heading) + dz * Math.sin(poker.heading)) / (d || 1)
+    if (facing < 0.25) return false
+    this.possession.release(0.45)
+    // knock the puck onward, away from the poker
+    this.puck.vel.x = (dx / d) * 7
+    this.puck.vel.z = (dz / d) * 7
+    return true
+  }
+
+  // body check: shove the nearest opponent, stun them, strip the puck.
+  // Returns the victim if a hit landed.
+  bodyCheck(checker: SkaterBody): SkaterBody | null {
+    if (checker.checkCooldown > 0) return null
+    checker.checkCooldown = 1.2
+    let victim: SkaterBody | null = null
+    let bestD = 1.4
+    for (const s of this.skaters) {
+      if (s === checker || this.blockers.has(s)) continue
+      if (this.teamOf.get(s) === this.teamOf.get(checker)) continue
+      const d = Math.hypot(s.pos.x - checker.pos.x, s.pos.z - checker.pos.z)
+      if (d < bestD) {
+        bestD = d
+        victim = s
+      }
+    }
+    if (!victim) return null
+    victim.stunTimer = 0.8
+    victim.vel.x += Math.cos(checker.heading) * 5.5
+    victim.vel.z += Math.sin(checker.heading) * 5.5
+    // checker bleeds speed delivering the hit
+    checker.vel.multiplyScalar(0.45)
+    if (this.possession.owner === victim) this.possession.release(0.35)
+    return victim
+  }
+
+  // quick lateral burst; the possession leash carries the puck along
+  deke(carrier: SkaterBody, side: -1 | 1): void {
+    if (carrier.dekeCooldown > 0) return
+    carrier.dekeCooldown = 1
+    // perpendicular to heading: heading rotated +90° is (-sin, +cos)
+    carrier.vel.x += -Math.sin(carrier.heading) * side * 4.5
+    carrier.vel.z += Math.cos(carrier.heading) * side * 4.5
+  }
+
   private recordRelease(skater: SkaterBody): void {
     const team = this.teamOf.get(skater)
     if (team !== undefined) {

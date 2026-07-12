@@ -1,4 +1,4 @@
-import { GOAL } from '../config'
+import { GOAL, RINK } from '../config'
 import type { World } from '../physics/world'
 import type { SkaterBody } from '../physics/skaterBody'
 import { steerToward } from './steering'
@@ -7,6 +7,8 @@ import { steerToward } from './steering'
 // the puck, square to the shot. Butterfly when a fast puck closes in.
 export class GoalieBrain {
   saveTriggered = false
+  // false = pulled: skate to the bench and stay there (empty net)
+  enabled = true
   private butterflyLatch = 0
   private holdTimer = 0
 
@@ -24,6 +26,12 @@ export class GoalieBrain {
     const d = this.defendsOf()
     const goalX = d * GOAL.lineX
     const puck = this.world.puck
+
+    if (!this.enabled) {
+      // pulled: head for the bench gate at center ice
+      steerToward(intent, this.goalie, d * 2.5, RINK.halfWidth - 1.4, true)
+      return
+    }
 
     // caught it: hold briefly, then clear up the boards
     if (this.world.possession.owner === this.goalie) {
