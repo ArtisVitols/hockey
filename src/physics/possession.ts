@@ -14,7 +14,7 @@ export class Possession {
   owner: SkaterBody | null = null
   private cooldown = 0
 
-  update(dt: number, puck: Puck, skaters: SkaterBody[]): void {
+  update(dt: number, puck: Puck, skaters: SkaterBody[], passTarget: SkaterBody | null = null): void {
     this.cooldown = Math.max(0, this.cooldown - dt)
 
     if (this.owner) {
@@ -32,14 +32,19 @@ export class Possession {
     let best: SkaterBody | null = null
     let bestD = Infinity
     for (const s of skaters) {
+      // the intended pass receiver gets soft hands: bigger reach, higher
+      // tolerated closing speed, and priority over incidental bystanders
+      const isTarget = s === passTarget
+      const range = isTarget ? 1.9 : PICKUP_RANGE
+      const maxRel = isTarget ? 24 : PICKUP_MAX_REL_SPEED
       const dx = puck.pos.x - s.pos.x
       const dz = puck.pos.z - s.pos.z
       const d = Math.hypot(dx, dz)
-      if (d > PICKUP_RANGE + PUCK.radius) continue
+      if (d > range + PUCK.radius) continue
       const relX = puck.vel.x - s.vel.x
       const relZ = puck.vel.z - s.vel.z
-      if (Math.hypot(relX, relZ) > PICKUP_MAX_REL_SPEED) continue
-      const scored = d + (Math.random() - 0.5) * 0.3
+      if (Math.hypot(relX, relZ) > maxRel) continue
+      const scored = d + (Math.random() - 0.5) * 0.3 - (isTarget ? 1.5 : 0)
       if (scored < bestD) {
         bestD = scored
         best = s

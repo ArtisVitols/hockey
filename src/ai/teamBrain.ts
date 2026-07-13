@@ -101,6 +101,15 @@ export class TeamBrain {
         return
       }
 
+      // run the route: the intended pass receiver skates to meet the puck,
+      // leading it further when it's farther away
+      if (this.world.passTarget === s) {
+        const dist = Math.hypot(puck.pos.x - s.pos.x, puck.pos.z - s.pos.z)
+        const lead = Math.min(0.6, 0.2 + dist * 0.04)
+        steerToward(intent, s, puck.pos.x + puck.vel.x * lead, puck.pos.z + puck.vel.z * lead, false)
+        return
+      }
+
       if (chaser === s) {
         // pursue the puck; poke attempts are rate-limited per skater so
         // carriers get realistic time on the puck between challenges
@@ -202,12 +211,10 @@ export class TeamBrain {
         this.world.shoot(carrier, action.tx, action.tz, action.charge)
         this.onShot?.(carrier)
         break
-      case 'pass': {
-        const to = action.to
-        this.world.pass(carrier, to.pos.x + to.vel.x * 0.35, to.pos.z + to.vel.z * 0.35)
+      case 'pass':
+        this.world.passTo(carrier, action.to)
         this.onShot?.(carrier)
         break
-      }
       case 'carry':
         steerToward(intent, carrier, action.tx, action.tz, action.sprint)
         break

@@ -295,6 +295,52 @@ async function start() {
     return { x: i.aimX, z: i.aimZ }
   }
 
+  // Pick the teammate a human pass should go to. Classic auto-selects the
+  // most open mate; mouse snaps to the teammate best matching the cursor
+  // direction (within a generous cone) so passes land on sticks.
+  const passReceiver = (): SkaterBody | null => {
+    if (scheme === 'classic') {
+      return (
+        pickOpenMate(controlled, teamSkaters[0], teamSkaters[1], match.attackDirOf(0), 0) ??
+        pickOpenMate(controlled, teamSkaters[0], [], match.attackDirOf(0), 0)
+      )
+    }
+    const i = input.intent
+    return coneReceiver(controlled, teamSkaters[0], i.aimX, i.aimZ)
+  }
+
+  // teammate best matching the aim direction, within a ~35° cone
+  const coneReceiver = (
+    from: SkaterBody,
+    mates: SkaterBody[],
+    aimX: number,
+    aimZ: number,
+  ): SkaterBody | null => {
+    const dirX = aimX - from.pos.x
+    const dirZ = aimZ - from.pos.z
+    const dirLen = Math.hypot(dirX, dirZ)
+    if (dirLen < 0.5) return null
+    let best: SkaterBody | null = null
+    let bestScore = -Infinity
+    for (const m of mates) {
+      if (m === from) continue
+      const mx = m.pos.x - from.pos.x
+      const mz = m.pos.z - from.pos.z
+      const mLen = Math.hypot(mx, mz)
+      if (mLen < 1.5) continue
+      const cos = (mx * dirX + mz * dirZ) / (mLen * dirLen)
+      if (cos < 0.82) continue
+      // prefer alignment, slightly prefer mates near the aim point
+      const aimDist = Math.hypot(m.pos.x - aimX, m.pos.z - aimZ)
+      const score = cos * 10 - aimDist * 0.15
+      if (score > bestScore) {
+        bestScore = score
+        best = m
+      }
+    }
+    return best
+  }
+
   const swapControlled = (next: SkaterBody) => {
     if (next === controlled) return
     world.intents.set(controlled, emptyIntent())
@@ -329,8 +375,13 @@ async function start() {
     prevShootHeld = i.shootHeld
 
     if (i.passPressed) {
-      const t = passAim()
-      world.pass(controlled, t.x, t.z)
+      const receiver = passReceiver()
+      if (receiver) world.passTo(controlled, receiver)
+      else {
+        // no teammate that way: dump the puck to the cursor point
+        const t = passAim()
+        world.pass(controlled, t.x, t.z)
+      }
       anim()?.playShot()
     }
     if (i.wristShotPressed) {
@@ -393,7 +444,9 @@ async function start() {
       }
       prevPadShoot = pad.intent.shootHeld
       if (pad.intent.passPressed) {
-        world.pass(controlled2, pad.intent.aimX, pad.intent.aimZ)
+        const rec2 = coneReceiver(controlled2, teamSkaters[1], pad.intent.aimX, pad.intent.aimZ)
+        if (rec2) world.passTo(controlled2, rec2)
+        else world.pass(controlled2, pad.intent.aimX, pad.intent.aimZ)
         visuals.get(controlled2)?.anim.playShot()
       }
     }
@@ -457,6 +510,7 @@ async function start() {
     spread(): number
     formation(): unknown
     puckDebug(): { nearest: number; speed: number; y: number; owned: boolean }
+    passStats(): { attempts: number; completed: number; intercepted: number; missed: number }
   }
   ;(window as unknown as { __game: GameTestApi }).__game = {
     player: () => ({ x: controlled.pos.x, z: controlled.pos.z }),
@@ -478,6 +532,7 @@ async function start() {
       score: [match.score[0], match.score[1]],
     }),
     goalie: (team: 0 | 1) => ({ x: goalies[team]!.pos.x, z: goalies[team]!.pos.z }),
+    passStats: () => ({ ...world.passStats }),
     // pickup diagnostics: nearest skater distance, puck speed/height
     puckDebug: () => {
       let best = Infinity

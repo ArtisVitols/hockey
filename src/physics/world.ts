@@ -22,6 +22,11 @@ export class World {
   readonly teamOf = new Map<SkaterBody, 0 | 1>()
   // bodies that physically block the puck (goalies)
   readonly blockers = new Set<SkaterBody>()
+  // intended receiver of the pass in flight (route-running + catch assist)
+  passTarget: SkaterBody | null = null
+  private passTargetTimer = 0
+  // running tally of targeted passes (test/tuning telemetry)
+  readonly passStats = { attempts: 0, completed: 0, intercepted: 0, missed: 0 }
   onGoal: ((e: GoalEvent) => void) | null = null
   // last team to touch the puck and where the touch/release happened
   lastTouchTeam: 0 | 1 | null = null
@@ -43,7 +48,23 @@ export class World {
       if (intent) s.step(dt, intent)
     }
     this.resolveSkaterCollisions()
-    this.possession.update(dt, this.puck, this.skaters)
+
+    // pass-target bookkeeping: expires by timer or on any pickup
+    if (this.passTarget) {
+      this.passTargetTimer -= dt
+      if (this.passTargetTimer <= 0) {
+        this.passTarget = null
+        this.passStats.missed++
+      }
+    }
+    this.possession.update(dt, this.puck, this.skaters, this.passTarget)
+    if (this.possession.owner && this.passTarget) {
+      if (this.possession.owner === this.passTarget) this.passStats.completed++
+      else if (this.teamOf.get(this.possession.owner) !== this.teamOf.get(this.passTarget))
+        this.passStats.intercepted++
+      else this.passStats.completed++ // a different teammate corralled it
+      this.passTarget = null
+    }
 
     // track touches for icing/offside attribution
     const owner = this.possession.owner
@@ -112,6 +133,38 @@ export class World {
     // is low; a fixed-speed pass overshoots everything nearby)
     const dist = Math.hypot(aimX - this.puck.pos.x, aimZ - this.puck.pos.z)
     this.puck.shootToward(_aim, Math.min(17, 8 + dist * 0.6))
+  }
+
+  // Targeted pass: solves the intercept so puck and receiver arrive at the
+  // same spot together, and marks the receiver so he runs the route and
+  // gets a catch assist. Pass speed follows the same distance scaling.
+  passTo(passer: SkaterBody, receiver: SkaterBody): void {
+    if (this.possession.owner !== passer) return
+
+    // fixed-point iteration: flight time depends on distance, distance on
+    // the receiver's future position
+    const px = this.puck.pos.x
+    const pz = this.puck.pos.z
+    let tx = receiver.pos.x
+    let tz = receiver.pos.z
+    let flight = 0
+    for (let i = 0; i < 4; i++) {
+      const dist = Math.hypot(tx - px, tz - pz)
+      const speed = Math.min(17, 8 + dist * 0.6)
+      // average speed over the glide ≈ launch − friction·t/2; keep simple
+      flight = dist / Math.max(6, speed - (PUCK.friction * dist) / speed / 2)
+      tx = receiver.pos.x + receiver.vel.x * flight
+      tz = receiver.pos.z + receiver.vel.z * flight
+    }
+
+    this.recordRelease(passer)
+    this.possession.release()
+    _aim.set(tx, 0, tz)
+    const dist = Math.hypot(tx - px, tz - pz)
+    this.puck.shootToward(_aim, Math.min(17, 8 + dist * 0.6))
+    this.passTarget = receiver
+    this.passTargetTimer = flight + 1.2
+    this.passStats.attempts++
   }
 
   // quick low snap shot: instant release, modest speed, slight lift

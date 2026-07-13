@@ -35,7 +35,7 @@ function controlsSections(): string {
         ${row('🖱 move', 'Aim — the white ring on the ice is your target')}
         ${row('🖱 left <small>hold</small>', 'Slap shot — charge bar fills, release to fire')}
         ${row('🖱 left <small>tap</small>', 'Wrist shot — quick low snap')}
-        ${row(`🖱 right ${OR} ${key('E')}`, 'Pass toward the ring')}
+        ${row(`🖱 right ${OR} ${key('E')}`, 'Pass — snaps to the teammate you point at')}
         <div class="ctl-head">Actions</div>
         ${row(key('F'), 'Poke check — knock the puck off a carrier')}
         ${row(key('Space', true), 'Body check — flatten a nearby opponent')}
@@ -110,7 +110,7 @@ function controlsSections(): string {
 
 const HELP: Record<ControlScheme, string> = {
   mouse:
-    'WASD skate · mouse aim · hold LMB slap shot, tap LMB wrist shot · E / RMB pass · F poke · Space body check · Q deke · Shift sprint · F9 pull goalie · Esc pause',
+    'WASD skate · mouse aim · hold LMB slap shot, tap LMB wrist shot · E / RMB pass to teammate you point at · F poke · Space body check · Q deke · Shift sprint · F9 pull goalie · Esc pause',
   classic:
     'Arrows skate · with puck: S pass, D wrist shot, hold Space/W slap shot, A deke · without: S switch, D poke, Space/W body check · E/Shift sprint · F9 pull goalie · Esc pause',
 }
