@@ -217,6 +217,117 @@
         font-size: 12px;
         opacity: 0.55;
       }
+      .menu-card button.link {
+        background: none;
+        border: none;
+        color: #7fa8ff;
+        font-size: 14px;
+        letter-spacing: 1px;
+        margin-top: 12px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .menu-card button.link:hover {
+        background: none;
+        color: #a8c8ff;
+      }
+      .controls-card {
+        max-height: 88vh;
+        overflow-y: auto;
+        max-width: 640px;
+      }
+      .ctl-tabs {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 18px;
+      }
+      .ctl-section {
+        display: none;
+      }
+      .ctl-section.show {
+        display: block;
+      }
+      kbd.key {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        border-radius: 6px;
+        background: linear-gradient(#2a3242, #1a2130);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-bottom-width: 3px;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: #e8eef6;
+      }
+      kbd.key.wide {
+        min-width: 64px;
+      }
+      .key-cluster {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        margin: 4px 18px 10px;
+        vertical-align: top;
+      }
+      .key-cluster .krow {
+        display: flex;
+        gap: 4px;
+      }
+      .key-cluster .kcap {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 4px;
+        letter-spacing: 1px;
+      }
+      .ctl-rows {
+        margin: 8px auto 0;
+        max-width: 540px;
+        text-align: left;
+      }
+      .ctl-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .ctl-row .keys {
+        min-width: 150px;
+        display: flex;
+        gap: 4px;
+        justify-content: flex-end;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .ctl-row .keys .or {
+        font-size: 11px;
+        opacity: 0.5;
+        margin: 0 2px;
+      }
+      .ctl-row .desc {
+        font-size: 13px;
+        opacity: 0.85;
+      }
+      .ctl-row .desc small {
+        opacity: 0.6;
+      }
+      .ctl-head {
+        font-size: 12px;
+        letter-spacing: 2px;
+        opacity: 0.55;
+        margin: 14px 0 4px;
+        text-transform: uppercase;
+      }
+      .gamepad-svg {
+        margin: 6px auto;
+        display: block;
+      }
     </style>
   </head>
   <body>
