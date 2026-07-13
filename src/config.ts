@@ -39,8 +39,10 @@ export const GOAL = {
 export const PUCK = {
   radius: 0.0381,
   height: 0.0254,
-  // ice friction: constant deceleration in m/s^2
-  friction: 0.35,
+  // ice friction: constant deceleration in m/s^2. Higher than real ice on
+  // purpose — loose pucks must decay to chaseable speeds within seconds or
+  // the game becomes endless puck-races (skaters top out at ~11.5 m/s).
+  friction: 0.85,
   boardRestitution: 0.55,
   tangentialDamping: 0.92,
   maxSpeed: 45,

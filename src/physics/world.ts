@@ -108,7 +108,10 @@ export class World {
     this.recordRelease(passer)
     this.possession.release()
     _aim.set(aimX, 0, aimZ)
-    this.puck.shootToward(_aim, 16)
+    // scale pace to distance so the puck arrives catchable (ice friction
+    // is low; a fixed-speed pass overshoots everything nearby)
+    const dist = Math.hypot(aimX - this.puck.pos.x, aimZ - this.puck.pos.z)
+    this.puck.shootToward(_aim, Math.min(17, 8 + dist * 0.6))
   }
 
   // quick low snap shot: instant release, modest speed, slight lift

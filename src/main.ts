@@ -455,6 +455,8 @@ async function start() {
     match(): { phase: string; period: number; clock: number; score: [number, number] }
     goalie(team: 0 | 1): { x: number; z: number }
     spread(): number
+    formation(): unknown
+    puckDebug(): { nearest: number; speed: number; y: number; owned: boolean }
   }
   ;(window as unknown as { __game: GameTestApi }).__game = {
     player: () => ({ x: controlled.pos.x, z: controlled.pos.z }),
@@ -476,6 +478,37 @@ async function start() {
       score: [match.score[0], match.score[1]],
     }),
     goalie: (team: 0 | 1) => ({ x: goalies[team]!.pos.x, z: goalies[team]!.pos.z }),
+    // pickup diagnostics: nearest skater distance, puck speed/height
+    puckDebug: () => {
+      let best = Infinity
+      for (const s of world.skaters) {
+        const d = Math.hypot(s.pos.x - world.puck.pos.x, s.pos.z - world.puck.pos.z)
+        if (d < best) best = d
+      }
+      return {
+        nearest: best,
+        speed: Math.hypot(world.puck.vel.x, world.puck.vel.z),
+        y: world.puck.pos.y,
+        owned: world.possession.owner !== null,
+      }
+    },
+    // formation snapshot for tactical soak metrics
+    formation: () => {
+      const owner = world.possession.owner
+      const ownerTeam = owner ? (world.teamOf.get(owner) ?? null) : null
+      return {
+        possession: ownerTeam,
+        puck: { x: world.puck.pos.x, z: world.puck.pos.z },
+        attackDir: [match.attackDirOf(0), match.attackDirOf(1)],
+        teams: ([0, 1] as const).map((t) =>
+          teamSkaters[t].map((s, i) => ({
+            role: SKATER_ROLES[i]!,
+            x: s.pos.x,
+            z: s.pos.z,
+          })),
+        ),
+      }
+    },
     // mean pairwise skater distance — clump detector for AI soak tests
     spread: () => {
       let sum = 0

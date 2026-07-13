@@ -3,7 +3,8 @@ import type { SkaterBody } from './skaterBody'
 import { PUCK } from '../config'
 
 const PICKUP_RANGE = 1.0
-const PICKUP_MAX_REL_SPEED = 14
+// receivers can corral firm passes; only genuine shots stay uncatchable
+const PICKUP_MAX_REL_SPEED = 19
 const STICK_REACH = 1.05 // stick point ahead of the skater
 const RELEASE_COOLDOWN = 0.35
 

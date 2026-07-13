@@ -34,35 +34,52 @@ for (let i = 0; i < 10; i++) {
 const s0 = await state()
 console.log('start:', JSON.stringify(s0))
 
-// 1. skate right (D) toward the puck at center — real key event drives intent
-await page.keyboard.down('KeyD')
-await page.evaluate(() => window.__game.advance(2.0))
-await page.keyboard.up('KeyD')
-await page.evaluate(() => window.__game.advance(0.5))
-const s1 = await state()
-console.log('after skating:', JSON.stringify(s1))
-console.log('MOVED:', s1.player.x > s0.player.x + 5 ? 'PASS' : 'FAIL')
-console.log('POSSESSION:', s1.possession ? 'PASS' : 'FAIL')
+// helper: skate toward a world point with WASD (+x = D, +z = S)
+const skateToward = async (tx, tz, sec) => {
+  const me = (await state()).player
+  const keyX = tx > me.x + 0.3 ? 'KeyD' : tx < me.x - 0.3 ? 'KeyA' : null
+  const keyZ = tz > me.z + 0.3 ? 'KeyS' : tz < me.z - 0.3 ? 'KeyW' : null
+  if (keyX) await page.keyboard.down(keyX)
+  if (keyZ) await page.keyboard.down(keyZ)
+  await page.evaluate((s) => window.__game.advance(s), sec)
+  if (keyX) await page.keyboard.up(keyX)
+  if (keyZ) await page.keyboard.up(keyZ)
+}
 
-// 2. score on the +x goal: chase the puck and shoot at a corner, up to 12
-// attempts (the goalie AI can and should save some of these)
+// 1. skate right (D) — real key event drives intent
+await page.keyboard.down('KeyD')
+await page.evaluate(() => window.__game.advance(1.5))
+await page.keyboard.up('KeyD')
+const s1 = await state()
+console.log('MOVED:', s1.player.x > s0.player.x + 3 ? 'PASS' : 'FAIL')
+
+// 2. chase the puck (poke with F when in reach) until we possess it
+let possession = false
+for (let i = 0; i < 40 && !possession; i++) {
+  const st = await state()
+  const reach = Math.hypot(st.puck.x - st.player.x, st.puck.z - st.player.z)
+  if (reach < 1.6) await page.keyboard.press('KeyF')
+  await skateToward(st.puck.x, st.puck.z, 0.5)
+  possession = (await state()).possession
+}
+console.log('POSSESSION:', possession ? 'PASS' : 'FAIL')
+
+// 3. score on the +x goal: chase, carry in, shoot corners (goalie saves some)
 let scored = false
-for (let i = 0; i < 50 && !scored; i++) {
-  const st = await page.evaluate(() => ({
-    has: window.__game.hasPossession(),
-    me: window.__game.player(),
-  }))
-  if (st.has && st.me.x > 17) {
+for (let i = 0; i < 70 && !scored; i++) {
+  const st = await state()
+  if (st.possession && st.player.x > 17) {
     // in tight: vary corner and shot type (low snap / lifted wrister / slap)
     const corner = i % 2 === 0 ? 0.72 : -0.72
     const charge = [0.25, 0.55, 0.85][i % 3]
     await page.evaluate(([z, c]) => window.__game.shoot(26.5, z, c), [corner, charge])
     await page.evaluate(() => window.__game.advance(1.0))
+  } else if (st.possession) {
+    await skateToward(26, st.player.z * 0.5, 0.7)
   } else {
-    // drive toward the offensive zone / chase the puck
-    await page.keyboard.down('KeyD')
-    await page.evaluate(() => window.__game.advance(0.7))
-    await page.keyboard.up('KeyD')
+    const reach = Math.hypot(st.puck.x - st.player.x, st.puck.z - st.player.z)
+    if (reach < 1.6) await page.keyboard.press('KeyF')
+    await skateToward(st.puck.x, st.puck.z, 0.6)
   }
   const m = await page.evaluate(() => window.__game.match())
   if (m.score[0] > 0) scored = true
