@@ -20,6 +20,8 @@ export class SkaterBody {
   heading = 0 // facing angle (radians, atan2(-z, x) convention: angle in xz)
   // while > 0, input is ignored (body-check knockdown)
   stunTimer = 0
+  // true while executing a hard direction reversal at speed (hockey stop)
+  braking = false
   // action cooldowns (seconds remaining)
   pokeCooldown = 0
   checkCooldown = 0
@@ -46,6 +48,7 @@ export class SkaterBody {
       return
     }
 
+    this.braking = false
     const speed = Math.hypot(this.vel.x, this.vel.z)
     const hasInput = Math.hypot(intent.moveX, intent.moveZ) > 0.01
 
@@ -71,6 +74,7 @@ export class SkaterBody {
 
         // hard direction reversals brake instead of turning
         const reversing = Math.abs(diff) > Math.PI * 0.7
+        this.braking = reversing && speed > 3.5
         const rate = reversing ? -BRAKE : speed < targetSpeed ? ACCEL : -ACCEL * 0.5
         const newSpeed = Math.max(0, Math.min(targetSpeed, speed + rate * dt))
         this.vel.x = Math.cos(newAngle) * newSpeed

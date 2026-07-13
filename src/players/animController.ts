@@ -1,255 +1,91 @@
 import {
-  AnimationClip,
   AnimationMixer,
-  Euler,
   LoopOnce,
-  Quaternion,
-  QuaternionKeyframeTrack,
-  VectorKeyframeTrack,
   type AnimationAction,
-  type SkinnedMesh,
+  type AnimationClip,
+  type Object3D,
 } from 'three'
+import type { ClipSet } from './hockeyClips'
 
-const _e = new Euler()
-const _q = new Quaternion()
+const CROSSFADE = 0.22
 
-// Quaternion track from euler keyframes: [time, rx, ry, rz][]
-function qTrack(bone: string, keys: Array<[number, number, number, number]>): QuaternionKeyframeTrack {
-  const times: number[] = []
-  const values: number[] = []
-  for (const [t, rx, ry, rz] of keys) {
-    times.push(t)
-    _q.setFromEuler(_e.set(rx, ry, rz))
-    values.push(_q.x, _q.y, _q.z, _q.w)
-  }
-  return new QuaternionKeyframeTrack(`${bone}.quaternion`, times, values)
-}
+type LocoTier = 'idle' | 'glide' | 'skate' | 'sprint'
 
-// Skating stride: legs swing about z (forward axis is +x), splay about x on
-// the push, arms counter-swing, constant forward lean, damped hip bob.
-function makeSkateClip(): AnimationClip {
-  const T = 0.9
-  const swing = 0.62
-  const splay = 0.3
-  return new AnimationClip('skate', T, [
-    qTrack('thighL', [
-      [0, swing, 0, -splay],
-      [T * 0.5, -swing, 0, splay * 0.4],
-      [T, swing, 0, -splay],
-    ]),
-    qTrack('thighR', [
-      [0, -swing, 0, splay * 0.4],
-      [T * 0.5, swing, 0, -splay],
-      [T, -swing, 0, splay * 0.4],
-    ]),
-    qTrack('shinL', [
-      [0, -swing * 0.5, 0, 0],
-      [T * 0.5, swing * 0.9, 0, 0],
-      [T, -swing * 0.5, 0, 0],
-    ]),
-    qTrack('shinR', [
-      [0, swing * 0.9, 0, 0],
-      [T * 0.5, -swing * 0.5, 0, 0],
-      [T, swing * 0.9, 0, 0],
-    ]),
-    qTrack('upperArmL', [
-      [0, -0.45, 0, 0],
-      [T * 0.5, 0.45, 0, 0],
-      [T, -0.45, 0, 0],
-    ]),
-    qTrack('upperArmR', [
-      [0, 0.45, 0, 0],
-      [T * 0.5, -0.45, 0, 0],
-      [T, 0.45, 0, 0],
-    ]),
-    qTrack('chest', [
-      [0, 0, 0, 0.3],
-      [T * 0.5, 0, 0, 0.34],
-      [T, 0, 0, 0.3],
-    ]),
-    new VectorKeyframeTrack('hips.position', [0, T * 0.25, T * 0.5, T * 0.75, T], [
-      0, 0.95, 0,
-      0, 0.92, 0,
-      0, 0.95, 0,
-      0, 0.92, 0,
-      0, 0.95, 0,
-    ]),
-  ])
-}
-
-function makeIdleClip(): AnimationClip {
-  const T = 3
-  return new AnimationClip('idle', T, [
-    qTrack('chest', [
-      [0, 0, 0, 0.12],
-      [T * 0.5, 0, 0.04, 0.15],
-      [T, 0, 0, 0.12],
-    ]),
-    qTrack('thighL', [[0, 0, 0, -0.06]]),
-    qTrack('thighR', [[0, 0, 0, 0.06]]),
-  ])
-}
-
-// One-shot slap/wrist shot: wind up, torso twist, follow through.
-function makeShotClip(): AnimationClip {
-  const T = 0.55
-  return new AnimationClip('shot', T, [
-    qTrack('chest', [
-      [0, 0, 0, 0.3],
-      [T * 0.35, 0, 0.7, 0.35],
-      [T * 0.6, 0, -0.6, 0.3],
-      [T, 0, 0, 0.3],
-    ]),
-    qTrack('upperArmR', [
-      [0, 0, 0, 0],
-      [T * 0.35, 0.9, 0, -0.3],
-      [T * 0.6, -0.8, 0, 0.2],
-      [T, 0, 0, 0],
-    ]),
-    qTrack('upperArmL', [
-      [0, 0, 0, 0],
-      [T * 0.35, 0.5, 0, 0.2],
-      [T * 0.6, -0.5, 0, -0.1],
-      [T, 0, 0, 0],
-    ]),
-  ])
-}
-
-// Poke check: quick two-handed stick lunge.
-function makePokeClip(): AnimationClip {
-  const T = 0.4
-  return new AnimationClip('poke', T, [
-    qTrack('upperArmR', [
-      [0, 0, 0, 0],
-      [T * 0.4, 1.1, 0, -0.2],
-      [T, 0, 0, 0],
-    ]),
-    qTrack('upperArmL', [
-      [0, 0, 0, 0],
-      [T * 0.4, 0.9, 0, 0.15],
-      [T, 0, 0, 0],
-    ]),
-    qTrack('chest', [
-      [0, 0, 0, 0.3],
-      [T * 0.4, 0, 0, 0.55],
-      [T, 0, 0, 0.3],
-    ]),
-  ])
-}
-
-// Body check: shoulder drive into the hit.
-function makeCheckClip(): AnimationClip {
-  const T = 0.45
-  return new AnimationClip('check', T, [
-    qTrack('chest', [
-      [0, 0, 0, 0.3],
-      [T * 0.35, 0, -0.55, 0.5],
-      [T, 0, 0, 0.3],
-    ]),
-    qTrack('upperArmR', [
-      [0, 0, 0, 0],
-      [T * 0.35, 0.4, 0, -0.5],
-      [T, 0, 0, 0],
-    ]),
-  ])
-}
-
-// Stumble: knocked off balance, pitches forward and recovers.
-function makeStumbleClip(): AnimationClip {
-  const T = 0.75
-  return new AnimationClip('stumble', T, [
-    qTrack('chest', [
-      [0, 0, 0, 0.3],
-      [T * 0.3, 0, 0.3, 0.95],
-      [T * 0.65, 0, 0.2, 0.75],
-      [T, 0, 0, 0.3],
-    ]),
-    qTrack('upperArmL', [
-      [0, 0, 0, 0],
-      [T * 0.3, -1.1, 0, 0.6],
-      [T, 0, 0, 0],
-    ]),
-    qTrack('upperArmR', [
-      [0, 0, 0, 0],
-      [T * 0.3, -1.1, 0, -0.6],
-      [T, 0, 0, 0],
-    ]),
-    new VectorKeyframeTrack('hips.position', [0, T * 0.3, T], [0, 0.95, 0, 0, 0.78, 0, 0, 0.95, 0]),
-  ])
-}
-
-// Goalie butterfly save pose (also used as their idle crouch source).
-function makeButterflyClip(): AnimationClip {
-  const T = 0.4
-  return new AnimationClip('butterfly', T, [
-    qTrack('thighL', [
-      [0, 0, 0, 0],
-      [T, 1.15, 0, -0.5],
-    ]),
-    qTrack('thighR', [
-      [0, 0, 0, 0],
-      [T, -1.15, 0, 0.5],
-    ]),
-    qTrack('shinL', [
-      [0, 0, 0, 0],
-      [T, -1.2, 0, 0],
-    ]),
-    qTrack('shinR', [
-      [0, 0, 0, 0],
-      [T, 1.2, 0, 0],
-    ]),
-    new VectorKeyframeTrack('hips.position', [0, T], [0, 0.95, 0, 0, 0.55, 0]),
-  ])
-}
-
-const CROSSFADE = 0.18
-
-// Two-layer state machine: locomotion (idle ↔ skate, timeScale synced to
-// ground speed) + one-shot actions (shot) faded on top.
+// Locomotion layer (idle ↔ glide ↔ skate ↔ sprint cross-faded by speed,
+// timeScale synced to ground velocity) + one-shot action layer + a fall
+// state that locks locomotion until the get-up finishes.
 export class AnimController {
   private mixer: AnimationMixer
-  private idle: AnimationAction
-  private skate: AnimationAction
+  private loco: Record<LocoTier, AnimationAction>
   private shot: AnimationAction
   private poke: AnimationAction
   private check: AnimationAction
-  private stumble: AnimationAction
+  private fall: AnimationAction
+  private getup: AnimationAction
+  private stop: AnimationAction
   private butterfly: AnimationAction | null = null
-  private skating = false
+  private tier: LocoTier = 'idle'
+  private fallTimer = 0
+  private stopCooldown = 0
 
-  constructor(mesh: SkinnedMesh, goalie = false) {
-    this.mixer = new AnimationMixer(mesh)
-    this.idle = this.mixer.clipAction(makeIdleClip())
-    this.skate = this.mixer.clipAction(makeSkateClip())
-    const oneShot = (clip: AnimationClip) => {
-      const action = this.mixer.clipAction(clip)
-      action.setLoop(LoopOnce, 1)
-      action.clampWhenFinished = false
-      return action
+  constructor(root: Object3D, clips: ClipSet) {
+    this.mixer = new AnimationMixer(root)
+    const loop = (c: AnimationClip) => this.mixer.clipAction(c)
+    const once = (c: AnimationClip) => {
+      const a = this.mixer.clipAction(c)
+      a.setLoop(LoopOnce, 1)
+      return a
     }
-    this.shot = oneShot(makeShotClip())
-    this.poke = oneShot(makePokeClip())
-    this.check = oneShot(makeCheckClip())
-    this.stumble = oneShot(makeStumbleClip())
-    if (goalie) {
-      this.butterfly = this.mixer.clipAction(makeButterflyClip())
-      this.butterfly.setLoop(LoopOnce, 1)
+    this.loco = {
+      idle: loop(clips.idle),
+      glide: loop(clips.glide),
+      skate: loop(clips.skate),
+      sprint: loop(clips.sprint),
+    }
+    this.shot = once(clips.shot)
+    this.poke = once(clips.poke)
+    this.check = once(clips.check)
+    this.fall = once(clips.fall)
+    this.fall.clampWhenFinished = true
+    this.getup = once(clips.getup)
+    this.stop = once(clips.stop)
+    if (clips.butterfly) {
+      this.butterfly = once(clips.butterfly)
       this.butterfly.clampWhenFinished = true
     }
-    this.idle.play()
+    this.loco.idle.play()
   }
 
-  update(dt: number, speed: number): void {
-    const shouldSkate = speed > 0.6
-    if (shouldSkate !== this.skating) {
-      this.skating = shouldSkate
-      const from = shouldSkate ? this.idle : this.skate
-      const to = shouldSkate ? this.skate : this.idle
+  update(dt: number, speed: number, braking = false): void {
+    this.stopCooldown = Math.max(0, this.stopCooldown - dt)
+    if (braking && this.stopCooldown <= 0 && this.fallTimer <= 0) {
+      this.stopCooldown = 0.9
+      this.stop.reset().fadeIn(0.06).play()
+      this.stop.fadeOut(0.45)
+    }
+    if (this.fallTimer > 0) {
+      this.fallTimer -= dt
+      if (this.fallTimer <= 0) {
+        this.getup.reset().fadeIn(0.08).play()
+        this.getup.fadeOut(0.9)
+        this.fall.fadeOut(0.15)
+        this.loco[this.tier].reset().fadeIn(0.4).play()
+      }
+      this.mixer.update(dt)
+      return
+    }
+
+    const want: LocoTier = speed > 9 ? 'sprint' : speed > 3 ? 'skate' : speed > 0.55 ? 'glide' : 'idle'
+    if (want !== this.tier) {
+      const from = this.loco[this.tier]
+      const to = this.loco[want]
       to.reset().play()
       to.crossFadeFrom(from, CROSSFADE, true)
+      this.tier = want
     }
-    // feet match ice speed: full cycle tuned for ~5.5 m/s
-    this.skate.timeScale = Math.max(0.5, speed / 5.5)
+    // feet match the ice: stride cycles tuned for ~5.5 (skate) / 10 (sprint) m/s
+    this.loco.skate.timeScale = Math.max(0.55, speed / 5.5)
+    this.loco.sprint.timeScale = Math.max(0.7, speed / 10)
     this.mixer.update(dt)
   }
 
@@ -268,12 +104,16 @@ export class AnimController {
     this.check.fadeOut(0.4)
   }
 
+  // full knockdown: fall now, get up automatically (~1.5 s total)
   playStumble(): void {
-    this.stumble.reset().fadeIn(0.05).play()
-    this.stumble.fadeOut(0.7)
+    this.fallTimer = 0.65
+    this.fall.reset().fadeIn(0.06).play()
+    this.loco[this.tier].fadeOut(0.15)
   }
 
   playButterfly(): void {
-    this.butterfly?.reset().fadeIn(0.1).play()
+    if (!this.butterfly) return
+    this.butterfly.reset().fadeIn(0.08).play()
+    this.butterfly.fadeOut(1.1)
   }
 }

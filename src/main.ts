@@ -35,6 +35,7 @@ import { Menu, type GameMode } from './ui/menus'
 import { emptyIntent } from './input/intent'
 import { PUCK, GOAL } from './config'
 import { wantsWebGLFallback } from './core/quality'
+import { loadPlayerModel } from './core/assets'
 import type { SkaterBody } from './physics/skaterBody'
 
 async function start() {
@@ -44,7 +45,10 @@ async function start() {
   const banner = document.getElementById('hud-banner')!
   const chargeFill = document.getElementById('charge-fill')!
 
-  const renderer = await createRenderer(container, wantsWebGLFallback())
+  const [renderer, playerModel] = await Promise.all([
+    createRenderer(container, wantsWebGLFallback()),
+    loadPlayerModel(),
+  ])
   const scene = new Scene()
 
   const params = new URLSearchParams(window.location.search)
@@ -74,7 +78,7 @@ async function start() {
       world.intents.set(body, emptyIntent())
       world.teamOf.set(body, ti)
       teamSkaters[ti].push(body)
-      const visual = new PlayerVisual(def.colors)
+      const visual = new PlayerVisual(def.colors, false, playerModel)
       visuals.set(body, visual)
       scene.add(visual.group)
     }
@@ -85,7 +89,7 @@ async function start() {
     world.intents.set(goalie, emptyIntent())
     world.teamOf.set(goalie, ti)
     goalies.push(goalie)
-    const goalieVisual = new PlayerVisual(def.colors, true)
+    const goalieVisual = new PlayerVisual(def.colors, true, playerModel)
     visuals.set(goalie, goalieVisual)
     scene.add(goalieVisual.group)
   }

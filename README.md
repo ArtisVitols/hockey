@@ -10,7 +10,7 @@ A 3D ice hockey game that runs in the browser. Three.js (WebGPU with WebGL2 fall
 - Regulation international (IIHF) rink — 61×30 m, rulebook ice markings, regulation goals and sticks
 - Full 5v5 with faceoffs, offside, icing, periods, overtime
 - Wrist shots, charged slap shots, poke checks, body checks with knockdowns, dekes, pull-goalie
-- Skinned, animated players; goalies with butterfly saves
+- Rigged human player models (Mixamo-skeleton mannequins in team gear) with authored skating strides, hockey stops, falls + get-ups; goalies with butterfly saves
 - Team AI (roles, forecheck, poke-checking defense, passing) with three difficulties
 - 1 player, local 2 player (gamepad), or AI demo mode; two keyboard control schemes
 - Synthesized audio: goal horn, whistle, board hits, crowd

@@ -160,7 +160,8 @@ export class World {
       }
     }
     if (!victim) return null
-    victim.stunTimer = 0.8
+    // long enough to play the full fall + get-up
+    victim.stunTimer = 1.5
     victim.vel.x += Math.cos(checker.heading) * 5.5
     victim.vel.z += Math.sin(checker.heading) * 5.5
     // checker bleeds speed delivering the hit
