@@ -12,6 +12,7 @@ Browser-based 3D ice hockey game (5v5, IIHF rink) built on Three.js's WebGPU ren
   `export PATH="$HOME/.local/opt/node-v22.17.0-linux-x64/bin:$PATH"`
 - **TypeScript is pinned to 5.9.** TS 7's native compiler OOMs on this 8 GB machine against `@types/three` (7+ GB RSS, exit 137). Do not upgrade it.
 - Headless Chromium (playwright-core, binary at `~/.cache/ms-playwright/chromium-1228`) renders via swiftshader at ~2 fps, so **never verify gameplay with wall-clock waits** — use the `window.__game.advance(seconds)` sim fast-forward hook. Headless WebGPU initializes but screenshots come out blank; pass `?webgl=1` for visual checks (the TSL node materials compile identically on both backends).
+- Two more swiftshader traps (both hit while testing DOM overlays): **CSS transitions never advance** under the starved animation clock — an element can have its `hidden` class removed yet composite at opacity 0 forever; inject `transition: none` before screenshotting. And **`page.screenshot()` times out** waiting for frame stability — capture via a raw CDP `Page.captureScreenshot` instead (see `tools/pausecam.mjs` for both).
 
 ## Commands
 
@@ -58,7 +59,7 @@ Debug/test URL params: `?webgl=1` force WebGL2 · `?menu=0` skip menu into 1P ·
 
 **Players** (`src/players/`): the primary body is the Xbot rigged mannequin (`public/assets/models/xbot.glb`, the repo's only binary asset, fetched once by `tools/fetch-assets.mjs`), cloned per player and dressed with gear meshes attached to bones via world-pose `bone.attach()` (`glbPlayer.ts`); `proceduralPlayer.ts` remains the automatic fallback when the GLB fails to load. Animations are code-authored in `hockeyClips.ts` as **world-space deltas** composed through each rig's captured rest pose (`rigMap.ts`) — this is what makes hand-authored clips work on the Mixamo skeleton (non-identity rest rotations, T-pose baseline for the arms) *and* the procedural one from the same source. Two skinned-mesh gotchas that cost time: `Box3.setFromObject` lies about skinned size (measure bone world positions instead), and the mixamorig arms need baseline arms-down quaternions or every pose inherits the T-pose. The stick is not bone-attached — `playerVisual.solveStick()` orients it between the two hands toward the ice each frame. `AnimController` blends idle/glide/skate/sprint by speed, with one-shot actions and a fall+get-up state; debug URL params `?noanim=1` (freeze rest pose) and `?rigdebug=1` (log bone positions).
 
-**Test hook**: `main.ts` exposes `window.__game` (player/puck/goalie positions, possession, match state, `advance`, `shoot`, `spread`). The headless tools depend on it — keep it working when refactoring `main.ts`.
+**Test hook**: `main.ts` exposes `window.__game` (player/puck/goalie positions, possession, match state, `advance`, `shoot`, `spread`, `p1move`). The headless tools depend on it — keep it working when refactoring `main.ts`. `advance()` no-ops while the Esc pause menu is open (it mirrors the real loop's `paused` gate), so a test that presses Escape must resume before fast-forwarding.
 
 ## Deployment
 
