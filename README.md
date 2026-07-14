@@ -11,7 +11,8 @@ A 3D ice hockey game that runs in the browser. Three.js (WebGPU with WebGL2 fall
 - Full 5v5 with faceoffs, offside, icing, periods, overtime
 - Wrist shots, charged slap shots, poke checks, body checks with knockdowns, dekes, pull-goalie
 - Rigged human player models (Mixamo-skeleton mannequins in team gear) with authored skating strides, hockey stops, falls + get-ups; goalies with butterfly saves
-- Team AI (roles, forecheck, poke-checking defense, passing) with three difficulties
+- Team AI with real positional systems (attack triangle, d-zone box coverage, 1-2-2 forecheck, boards breakout) and three difficulties
+- Targeted passing — passes lead the receiver, who runs to meet the puck and gets a soft-hands catch assist; mouse/gamepad passes snap to the teammate you point at
 - 1 player, local 2 player (gamepad), or AI demo mode; two keyboard control schemes
 - Synthesized audio: goal horn, whistle, board hits, crowd
 - In-menu **Controls Guide** with keyboard schematics and a gamepad diagram
@@ -66,6 +67,7 @@ node tools/screenshot.mjs "http://localhost:5173/?webgl=1&frames=10" out.png
 node tools/drive.mjs          # e2e mouse scheme: skate → possess → score → faceoff reset
 node tools/classic-drive.mjs  # e2e classic scheme: arrows, wrist shot, switch, pull goalie
 node tools/soak.mjs 5         # AI-vs-AI soak for N sim-minutes
+node tools/passrate.mjs       # AI-vs-AI pass completion rate
 ```
 
 The e2e tools play against the live AI, so individual assertions can fail on unlucky runs — rerun before treating a failure as real.
