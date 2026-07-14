@@ -86,7 +86,9 @@ function buildLightFixtures(): Group {
     screen.position.set(Math.sin((i * Math.PI) / 2) * 3.55, 0, Math.cos((i * Math.PI) / 2) * 3.55)
     jumbotron.add(screen)
   }
-  jumbotron.position.set(0, 13, 0)
+  // hang it above the vertical follow-cam's height (y=15) — any lower and it
+  // blocks that camera's up-ice sightline across center
+  jumbotron.position.set(0, 18, 0)
   group.add(jumbotron)
 
   return group
