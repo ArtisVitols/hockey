@@ -1,3 +1,5 @@
+import type { CameraMode } from '../render/followCamera'
+
 export type GameMode = '1p' | '2p' | 'demo'
 export type ControlScheme = 'mouse' | 'classic'
 
@@ -214,6 +216,86 @@ export class Menu {
         })
       }
     })
+  }
+
+  show(): void {
+    this.root.classList.remove('hidden')
+  }
+
+  hide(): void {
+    this.root.classList.add('hidden')
+  }
+}
+
+// In-game options overlay (Esc during play): camera view, difficulty and
+// control scheme are all live-adjustable; changes apply immediately.
+export class PauseMenu {
+  onCamera: ((v: CameraMode) => void) | null = null
+  onDifficulty: ((v: MenuResult['difficulty']) => void) | null = null
+  onControls: ((v: ControlScheme) => void) | null = null
+  onResume: (() => void) | null = null
+  onExit: (() => void) | null = null
+  private root: HTMLDivElement
+
+  constructor() {
+    this.root = document.createElement('div')
+    this.root.id = 'pause-menu'
+    this.root.classList.add('hidden')
+    this.root.innerHTML = `
+      <div class="menu-card">
+        <h1>PAUSED</h1>
+        <div class="menu-row" data-group="camera">
+          <span>Camera</span>
+          <button data-v="broadcast" class="sel">Broadcast</button>
+          <button data-v="close">Close</button>
+          <button data-v="vertical">Vertical (NHL)</button>
+        </div>
+        <div class="menu-row" data-group="difficulty">
+          <span>Difficulty</span>
+          <button data-v="easy">Easy</button>
+          <button data-v="medium" class="sel">Medium</button>
+          <button data-v="hard">Hard</button>
+        </div>
+        <div class="menu-row" data-group="controls">
+          <span>Controls</span>
+          <button data-v="mouse" class="sel">Mouse aim</button>
+          <button data-v="classic">Classic (NHL 09)</button>
+        </div>
+        <div class="menu-start">
+          <button class="big" data-action="resume">RESUME</button>
+          <button class="big ghost" data-action="exit">EXIT TO MENU</button>
+        </div>
+      </div>`
+    document.body.appendChild(this.root)
+
+    this.root.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button')
+      if (!btn) return
+      const action = btn.getAttribute('data-action')
+      if (action === 'resume') return this.onResume?.()
+      if (action === 'exit') return this.onExit?.()
+      const group = btn.parentElement?.getAttribute('data-group')
+      if (!group) return
+      for (const b of btn.parentElement!.querySelectorAll('button')) b.classList.remove('sel')
+      btn.classList.add('sel')
+      const v = btn.getAttribute('data-v')!
+      if (group === 'camera') this.onCamera?.(v as CameraMode)
+      else if (group === 'difficulty') this.onDifficulty?.(v as MenuResult['difficulty'])
+      else this.onControls?.(v as ControlScheme)
+    })
+  }
+
+  // reflect state set elsewhere (main menu picks, URL params, localStorage)
+  setSelected(group: 'camera' | 'difficulty' | 'controls', v: string): void {
+    const row = this.root.querySelector(`[data-group="${group}"]`)
+    if (!row) return
+    for (const b of row.querySelectorAll('button')) {
+      b.classList.toggle('sel', b.getAttribute('data-v') === v)
+    }
+  }
+
+  get visible(): boolean {
+    return !this.root.classList.contains('hidden')
   }
 
   show(): void {

@@ -10,7 +10,7 @@ import {
 } from 'three'
 import { createRenderer, backendName } from './render/renderer'
 import { createOrbitCamera } from './render/camera'
-import { FollowCamera } from './render/followCamera'
+import { FollowCamera, CAMERA_MODES, type CameraMode } from './render/followCamera'
 import { setupLighting } from './render/lighting'
 import { createPostProcessing } from './render/postfx'
 import { buildRink } from './arena/rink'
@@ -31,7 +31,7 @@ import { DIFFICULTIES } from './ai/skaterBrain'
 import { buildCrowd } from './arena/crowd'
 import { Sound } from './audio/sound'
 import { GamepadInput } from './input/gamepad'
-import { Menu, type GameMode } from './ui/menus'
+import { Menu, PauseMenu, type GameMode } from './ui/menus'
 import { emptyIntent } from './input/intent'
 import { PUCK, GOAL } from './config'
 import { wantsWebGLFallback } from './core/quality'
@@ -55,6 +55,12 @@ async function start() {
   const useOrbit = params.get('cam') !== null
 
   const follow = new FollowCamera()
+  // camera view: URL param (headless verification) > saved preference
+  const camParam = params.get('camview')
+  const camSaved = localStorage.getItem('hockey.camera')
+  for (const v of [camSaved, camParam]) {
+    if (v && (CAMERA_MODES as string[]).includes(v)) follow.mode = v as CameraMode
+  }
   const orbit = useOrbit ? createOrbitCamera(renderer.domElement) : null
   const camera = orbit ? orbit.camera : follow.camera
 
@@ -251,18 +257,44 @@ async function start() {
     const d = DIFFICULTIES[r.difficulty]!
     cpuBrain.diff = d
     mateBrain.diff = d
+    pauseMenu.setSelected('difficulty', r.difficulty)
+    pauseMenu.setSelected('controls', r.controls)
     match.restart(r.periodSeconds)
     sound.resume()
   }
 
-  // pause (Escape) + pull goalie (F9 = your net, F10 = P2's net in 2P)
+  // pause menu (Escape) + pull goalie (F9 = your net, F10 = P2's net in 2P)
   let paused = false
+  const pauseMenu = new PauseMenu()
+  pauseMenu.setSelected('camera', follow.mode)
+  const setPaused = (p: boolean) => {
+    paused = p
+    if (p) pauseMenu.show()
+    else pauseMenu.hide()
+  }
+  pauseMenu.onResume = () => setPaused(false)
+  pauseMenu.onCamera = (v) => {
+    follow.mode = v
+    localStorage.setItem('hockey.camera', v)
+  }
+  pauseMenu.onDifficulty = (v) => {
+    const d = DIFFICULTIES[v]!
+    cpuBrain.diff = d
+    mateBrain.diff = d
+  }
+  pauseMenu.onControls = (v) => {
+    scheme = v
+    classic.clearQueued()
+    world.intents.set(controlled, activeInput().intent)
+  }
+  pauseMenu.onExit = () => {
+    setPaused(false)
+    mode = 'demo'
+    match.restart()
+    menu.show()
+  }
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') {
-      paused = !paused
-      banner.textContent = paused ? 'PAUSED' : ''
-      banner.classList.toggle('show', paused)
-    }
+    if (e.code === 'Escape' && mode !== 'demo') setPaused(!paused)
     const pull = e.code === 'F9' ? 0 : e.code === 'F10' && mode === '2p' ? 1 : -1
     if (pull >= 0 && mode !== 'demo') {
       e.preventDefault()
@@ -350,11 +382,26 @@ async function start() {
 
   // P1 input + action triggers — called from the render loop AND the
   // headless advance() hook so key-driven actions work in both
+  // keyboard movement is screen-space; rotate into world space when the
+  // camera view is rotated (vertical NHL cam). Mouse aim needs no remap —
+  // it raycasts through the camera.
+  const p1ViewYaw = () => (orbit ? 0 : follow.viewYaw(match.defendsOf(0)))
+  const rotateMove = (i: { moveX: number; moveZ: number }, yaw: number) => {
+    if (yaw === 0) return
+    const c = Math.cos(yaw)
+    const s = Math.sin(yaw)
+    const x = i.moveX
+    const z = i.moveZ
+    i.moveX = x * c - z * s
+    i.moveZ = x * s + z * c
+  }
+
   const updateP1 = (dt: number) => {
     if (mode === 'demo') return
     classic.hasPuck = world.possession.owner === controlled
     const active = activeInput()
     active.update(dt)
+    rotateMove(active.intent, p1ViewYaw())
 
     swapControlled(switcher.update(world, dt))
     if (scheme === 'classic' && classic.switchRequested) {
@@ -430,13 +477,14 @@ async function start() {
     if (!paused) updateP1(dt)
 
     // player 2 (gamepad) drives team 1 in 2P mode
-    if (mode === '2p') {
+    if (mode === '2p' && !paused) {
       const next2 = switcher2.update(world)
       if (next2 !== controlled2) {
         world.intents.set(controlled2, emptyIntent())
         world.intents.set(next2, pad.intent)
         controlled2 = next2
       }
+      pad.viewYaw = p1ViewYaw()
       pad.update(dt, controlled2)
       if (prevPadShoot && !pad.intent.shootHeld) {
         world.shoot(controlled2, pad.intent.aimX, pad.intent.aimZ, pad.consumeCharge())
@@ -477,7 +525,7 @@ async function start() {
     chargeFill.style.width = `${Math.round(activeInput().shootCharge * 100)}%`
 
     if (orbit) orbit.controls.update()
-    else follow.update(dt, visuals.get(controlled)!.group.position, puckMesh.position)
+    else follow.update(dt, visuals.get(controlled)!.group.position, puckMesh.position, match.defendsOf(0))
 
     post.render()
 
@@ -501,6 +549,7 @@ async function start() {
   // headless test hook
   interface GameTestApi {
     player(): { x: number; z: number }
+    p1move(): { x: number; z: number }
     puck(): { x: number; z: number }
     hasPossession(): boolean
     shoot(x: number, z: number, charge: number): void
@@ -514,10 +563,13 @@ async function start() {
   }
   ;(window as unknown as { __game: GameTestApi }).__game = {
     player: () => ({ x: controlled.pos.x, z: controlled.pos.z }),
+    // post-rotation P1 move intent (camera-view input remap verification)
+    p1move: () => ({ x: activeInput().intent.moveX, z: activeInput().intent.moveZ }),
     puck: () => ({ x: world.puck.pos.x, z: world.puck.pos.z }),
     hasPossession: () => world.possession.owner === controlled,
     shoot: (x, z, charge) => world.shoot(controlled, x, z, charge),
     advance: (seconds: number) => {
+      if (paused) return // pause menu freezes the sim, same as the RAF loop
       const stepDt = Engine.STEP
       const steps = Math.round(seconds / stepDt)
       for (let i = 0; i < steps; i++) {

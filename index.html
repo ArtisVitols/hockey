@@ -123,7 +123,8 @@
         background: linear-gradient(90deg, #ffd166, #ff2e44);
         border-radius: 5px;
       }
-      #menu {
+      #menu,
+      #pause-menu {
         position: fixed;
         inset: 0;
         display: flex;
@@ -134,7 +135,8 @@
         z-index: 30;
         transition: opacity 0.3s;
       }
-      #menu.hidden {
+      #menu.hidden,
+      #pause-menu.hidden {
         opacity: 0;
         pointer-events: none;
       }

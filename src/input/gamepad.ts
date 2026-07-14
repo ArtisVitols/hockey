@@ -10,6 +10,8 @@ export class GamepadInput {
   readonly intent: PlayerIntent = emptyIntent()
   connected = false
   shootCharge = 0
+  // screen→world rotation for rotated camera views (vertical NHL cam)
+  viewYaw = 0
   private prevPass = false
 
   update(dt: number, controlled: SkaterBody | null): void {
@@ -33,12 +35,14 @@ export class GamepadInput {
     }
 
     const ax = (v: number) => (Math.abs(v) > DEADZONE ? v : 0)
-    i.moveX = ax(pad.axes[0] ?? 0)
-    i.moveZ = ax(pad.axes[1] ?? 0)
+    // sticks are screen-space; rotate into world space for the current view
+    const c = Math.cos(this.viewYaw)
+    const s = Math.sin(this.viewYaw)
+    const rot = (x: number, z: number): [number, number] => [x * c - z * s, x * s + z * c]
+    ;[i.moveX, i.moveZ] = rot(ax(pad.axes[0] ?? 0), ax(pad.axes[1] ?? 0))
 
     // right stick sets the aim point ~9 m from the skater
-    const rx = ax(pad.axes[2] ?? 0)
-    const rz = ax(pad.axes[3] ?? 0)
+    const [rx, rz] = rot(ax(pad.axes[2] ?? 0), ax(pad.axes[3] ?? 0))
     if (controlled && (rx !== 0 || rz !== 0)) {
       const len = Math.hypot(rx, rz)
       i.aimX = controlled.pos.x + (rx / len) * 9

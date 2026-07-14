@@ -16,6 +16,7 @@ A 3D ice hockey game that runs in the browser. Three.js (WebGPU with WebGL2 fall
 - 1 player, local 2 player (gamepad), or AI demo mode; two keyboard control schemes
 - Synthesized audio: goal horn, whistle, board hits, crowd
 - In-menu **Controls Guide** with keyboard schematics and a gamepad diagram
+- **Esc options menu** during play: three camera views (Broadcast, Close, Vertical NHL-style up-ice), difficulty and control scheme — all adjustable live
 
 ## Controls
 
@@ -46,7 +47,7 @@ Two schemes, selectable in the menu (the **CONTROLS GUIDE** button in the main m
 | A | Deke | — |
 | E / Shift | Sprint | Sprint |
 
-Both schemes: **F9** pull goalie (F10 for P2 in 2-player), **Esc** pause.
+Both schemes: **F9** pull goalie (F10 for P2 in 2-player), **Esc** options menu (pause, camera view, difficulty, controls). The camera choice is remembered between sessions. Under the Vertical camera, movement keys are screen-relative (up = up-ice).
 
 Player 2 (gamepad): left stick skate, right stick aim, RT/A shoot, LB/X pass, L3/LT sprint.
 
@@ -68,10 +69,11 @@ node tools/drive.mjs          # e2e mouse scheme: skate → possess → score �
 node tools/classic-drive.mjs  # e2e classic scheme: arrows, wrist shot, switch, pull goalie
 node tools/soak.mjs 5         # AI-vs-AI soak for N sim-minutes
 node tools/passrate.mjs       # AI-vs-AI pass completion rate
+node tools/pausecam.mjs       # pause menu + camera-view input remap
 ```
 
 The e2e tools play against the live AI, so individual assertions can fail on unlucky runs — rerun before treating a failure as real.
 
-URL params: `?webgl=1` force WebGL2 · `?menu=0` skip menu · `?ai=1` AI demo · `?controls=classic` classic scheme · `?cam=x,y,z` debug orbit camera · `?frames=N` stop after N frames · `?difficulty=easy|medium|hard` · `?period=seconds`
+URL params: `?webgl=1` force WebGL2 · `?menu=0` skip menu · `?ai=1` AI demo · `?controls=classic` classic scheme · `?camview=broadcast|close|vertical` camera view · `?cam=x,y,z` debug orbit camera · `?frames=N` stop after N frames · `?difficulty=easy|medium|hard` · `?period=seconds`
 
 Deployment: every push to `main` builds and publishes to GitHub Pages via `.github/workflows/deploy.yml`.
